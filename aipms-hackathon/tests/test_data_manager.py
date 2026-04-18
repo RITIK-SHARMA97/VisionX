@@ -67,12 +67,12 @@ class TestDatasetManagerSynthetic:
         assert not np.isinf(X).any(), "X should not contain Inf"
     
     def test_synthetic_dataset_rul_values(self):
-        """Test synthetic RUL values are positive and reasonable."""
+        """Test synthetic RUL values are non-negative and reasonable."""
         dm = DatasetManager()
         X, y = dm.synthetic_dataset(n_engines=5)
         
-        # RUL should be positive and less than 200 cycles
-        assert np.all(y > 0), f"All RUL values should be > 0, got min: {y.min()}"
+        # RUL should be non-negative (0 at failure) and less than 200 cycles
+        assert np.all(y >= 0), f"All RUL values should be >=>= 0, got min: {y.min()}"
         assert np.all(y < 200), f"RUL values should be < 200, got max: {y.max()}"
         assert y.dtype in [np.float32, np.float64, float], "RUL should be numeric"
     
@@ -143,7 +143,7 @@ class TestDatasetManagerLoading:
         
         assert X.shape[1] == 17
         assert len(y) == len(X)
-        assert np.all(y > 0)
+        assert np.all(y >= 0)  # RUL can be 0 at equipment failure)  # RUL can be 0 at equipment failure
     
     def test_load_returns_numpy_arrays(self):
         """Test load returns numpy arrays, not DataFrames."""
@@ -270,7 +270,7 @@ class TestDatasetManagerIntegration:
         # Verify properties
         assert X.shape[1] == 17
         assert len(y) == X.shape[0]
-        assert np.all(y > 0)
+        assert np.all(y >= 0)  # RUL can be 0 at equipment failure)  # RUL can be 0 at equipment failure
     
     def test_load_all_subsets(self):
         """Test loading all available subsets."""

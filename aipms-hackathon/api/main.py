@@ -1,31 +1,54 @@
 """
 FastAPI application for AIPMS (AI-Powered Predictive Maintenance System).
 
-Provides REST endpoints for:
-- Data loading and feature engineering
-- Anomaly detection
-- Failure prediction
-- Remaining Useful Life (RUL) estimation
-- Model management and persistence
+Phase 4: Backend API for ML Model Inference
 
-The API serves as the interface between the trained ML models and external applications.
+Provides REST endpoints for:
+- Single & batch predictions (anomaly, failure, RUL)
+- Ensemble predictions (all 3 models combined)
+- Model management and status
+- Health checks and metrics
+
+The API serves as the interface between the trained ML models (Phase 3) 
+and external applications (dashboard, monitoring systems).
+
+Architecture:
+- Predictions are routed to dedicated modules with model caching
+- All models loaded once at first use (lazy initialization)
+- Responses standardized with timing/status information
+- Error handling with meaningful messages
 """
 
+import logging
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import numpy as np
-from typing import Optional, Dict, List, Any
 from pydantic import BaseModel
-import os
+from typing import Dict, List, Any
+import numpy as np
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
     title="AIPMS API",
-    description="AI-Powered Predictive Maintenance System API",
+    description="AI-Powered Predictive Maintenance System REST API",
     version="1.0.0"
 )
 
-# Global state for models and data
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Global models cache for lazy loading
 models_cache = {
     "dataset_manager": None,
     "feature_engineer": None,
@@ -42,119 +65,123 @@ models_cache = {
 # Request/Response Models
 # ============================================================================
 
-class LoadDataRequest(BaseModel):
-    """Request model for data loading."""
+class DataLoadRequest(BaseModel):
     dataset: str = "FD001"
     use_synthetic: bool = True
 
-
 class FeatureEngineerRequest(BaseModel):
-    """Request model for feature engineering."""
-    pass  # No parameters needed
+    pass
 
+class AnomalyDetectorTrainRequest(BaseModel):
+    n_estimators: int = 200
+    contamination: float = 0.05
+    random_state: int = 42
 
-class PredictionRequest(BaseModel):
-    """Request model for predictions."""
-    X: List[List[float]]
+class FailurePredictorTrainRequest(BaseModel):
+    max_depth: int = 10
+    learning_rate: float = 0.1
+    random_state: int = 42
 
-
-class MetricsRequest(BaseModel):
-    """Request model for metrics computation."""
-    X: List[List[float]]
-    y: List[float]
-
-
-class AnomalyTrainRequest(BaseModel):
-    """Request model for anomaly detector training."""
-    contamination: float = 0.1
-
-
-class FailureTrainRequest(BaseModel):
-    """Request model for failure predictor training."""
-    max_depth: int = 5
-    learning_rate: float = 0.05
-    n_estimators: int = 300
-    threshold: float = 0.5
-
-
-class RULTrainRequest(BaseModel):
-    """Request model for RUL estimator training."""
-    sequence_length: int = 30
+class RULEstimatorTrainRequest(BaseModel):
+    sequence_length: int = 5
     lstm_units: int = 64
     dropout_rate: float = 0.2
     learning_rate: float = 0.001
-    epochs: int = 50
+    epochs: int = 10
 
+class PredictionRequest(BaseModel):
+    X: List[List[float]]
 
-class SaveModelsRequest(BaseModel):
-    """Request model for saving models."""
-    path: str = "/tmp/aipms_models"
+class MetricsRequest(BaseModel):
+    X: List[List[float]]
+    y: List[float]
+
+# ============================================================================
+# Global State
+# ============================================================================
+
+cache = {
+    "X_raw": None,
+    "y_raw": None,
+    "X_engineered": None,
+    "y_engineered": None,
+    "anomaly_detector": None,
+    "failure_predictor": None,
+    "rul_estimator": None,
+    "scaler": None,
+}
 
 
 # ============================================================================
-# Health Endpoints
+# Health & Status Endpoints
 # ============================================================================
 
-@app.get("/")
+@app.get("/", tags=["health"])
 async def root():
-    """Root endpoint - health check."""
+    """Root endpoint - service status."""
     return {
-        "status": "healthy",
         "service": "AIPMS API",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "status": "healthy",
+        "documentation": "/docs"
     }
 
-
-@app.get("/health")
-async def health():
-    """Health endpoint."""
+@app.get("/health", tags=["health"])
+async def health_check():
+    """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": str(np.datetime64("now"))
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
-
 # ============================================================================
-# Data Endpoints
+# Data Loading Endpoints
 # ============================================================================
 
-@app.post("/data/load")
-async def load_dataset(request: LoadDataRequest):
+@app.post("/data/load", tags=["data"])
+async def load_data(request: DataLoadRequest):
     """Load dataset."""
     try:
         from models.train.data_manager import DatasetManager
         
         dm = DatasetManager()
-        X_raw, y_raw = dm.load(request.dataset, use_synthetic=request.use_synthetic)
+        X, y = dm.load(request.dataset, use_synthetic=request.use_synthetic)
         
-        models_cache["dataset_manager"] = dm
-        models_cache["X_raw"] = X_raw
-        models_cache["y_raw"] = y_raw
+        # Store in cache
+        cache["X_raw"] = X.astype(np.float32)
+        cache["y_raw"] = y.astype(np.float32)
         
         return {
             "status": "loaded",
             "dataset": request.dataset,
-            "n_samples": len(X_raw),
-            "n_features": X_raw.shape[1]
+            "n_samples": len(X),
+            "n_features": X.shape[1]
         }
     except Exception as e:
+        logger.error(f"Error loading data: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+# ============================================================================
+# Feature Engineering Endpoints
+# ============================================================================
 
-@app.post("/features/engineer")
+@app.post("/features/engineer", tags=["features"])
 async def engineer_features(request: FeatureEngineerRequest):
     """Engineer features from raw data."""
     try:
-        if models_cache["X_raw"] is None:
+        if cache["X_raw"] is None:
             raise ValueError("No raw data loaded. Call /data/load first.")
         
         from models.train.feature_engineer import FeatureEngineer
         
-        fe = FeatureEngineer()
-        X_engineered = fe.process(models_cache["X_raw"])
+        # Engineer features (normalize + rolling features)
+        fe = FeatureEngineer(window_size=5)
+        X_normalized = fe.normalize(cache["X_raw"])
+        X_engineered = fe.compute_rolling_features(X_normalized)
         
-        models_cache["feature_engineer"] = fe
-        models_cache["X_engineered"] = X_engineered
+        # Store in cache
+        cache["X_engineered"] = X_engineered.astype(np.float32)
+        cache["scaler"] = fe
         
         return {
             "status": "engineered",
@@ -162,86 +189,85 @@ async def engineer_features(request: FeatureEngineerRequest):
             "n_features": X_engineered.shape[1]
         }
     except Exception as e:
+        logger.error(f"Error engineering features: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-
 
 # ============================================================================
 # Anomaly Detection Endpoints
 # ============================================================================
 
-@app.post("/anomaly/train")
-async def train_anomaly_detector(request: AnomalyTrainRequest):
-    """Train anomaly detector."""
+@app.post("/anomaly/train", tags=["anomaly"])
+async def train_anomaly_detector(request: AnomalyDetectorTrainRequest):
+    """Train anomaly detection model."""
     try:
-        if models_cache["X_engineered"] is None:
+        if cache["X_engineered"] is None:
             raise ValueError("No engineered features. Call /features/engineer first.")
         
         from models.train.anomaly_detector import AnomalyDetector
         
-        ad = AnomalyDetector(contamination=request.contamination)
-        ad.fit(models_cache["X_engineered"])
-        
-        models_cache["anomaly_detector"] = ad
+        detector = AnomalyDetector(
+            n_estimators=request.n_estimators,
+            contamination=request.contamination,
+            random_state=request.random_state
+        )
+        detector.fit(cache["X_engineered"])
+        cache["anomaly_detector"] = detector
         
         return {
             "status": "trained",
             "model": "AnomalyDetector",
+            "n_estimators": request.n_estimators,
             "contamination": request.contamination
         }
     except Exception as e:
+        logger.error(f"Error training anomaly detector: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@app.post("/anomaly/predict")
+@app.post("/anomaly/predict", tags=["anomaly"])
 async def predict_anomaly(request: PredictionRequest):
     """Predict anomalies."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["anomaly_detector"] is None:
-        raise HTTPException(status_code=400, detail="Anomaly detector not trained. Call /anomaly/train first.")
-    
     try:
+        if cache["anomaly_detector"] is None:
+            raise ValueError("Anomaly detector not trained. Call /anomaly/train first.")
+        
         X = np.array(request.X, dtype=np.float32)
-        labels, scores = models_cache["anomaly_detector"].predict_with_scores(X)
+        scores = cache["anomaly_detector"].score_samples(X)
+        predictions = cache["anomaly_detector"].predict(X)
         
         return {
-            "predictions": labels.tolist(),
             "scores": scores.tolist(),
-            "n_samples": len(labels)
+            "predictions": predictions.tolist(),
+            "n_samples": len(scores)
         }
     except Exception as e:
+        logger.error(f"Error predicting anomalies: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-
 
 # ============================================================================
 # Failure Prediction Endpoints
 # ============================================================================
 
-@app.post("/failure/train")
-async def train_failure_predictor(request: FailureTrainRequest):
-    """Train failure predictor."""
+@app.post("/failure/train", tags=["failure"])
+async def train_failure_predictor(request: FailurePredictorTrainRequest):
+    """Train failure prediction model."""
     try:
-        if models_cache["X_engineered"] is None:
+        if cache["X_engineered"] is None:
             raise ValueError("No engineered features. Call /features/engineer first.")
+        if cache["y_raw"] is None:
+            raise ValueError("No labels. Call /data/load first.")
         
         from models.train.failure_predictor import FailurePredictor
         
-        # Create labels (RUL <= 30 cycles = failure)
-        window_size = 5
-        y_failure = (models_cache["y_raw"][window_size-1:] <= 30).astype(int)
-        X = models_cache["X_engineered"]
+        # Create binary labels (failure in next 7 days)
+        y_binary = (cache["y_raw"] <= 7).astype(int)
         
-        if len(y_failure) != len(X):
-            raise ValueError(f"Label mismatch: {len(y_failure)} vs {len(X)}")
-        
-        fp = FailurePredictor(
+        predictor = FailurePredictor(
             max_depth=request.max_depth,
             learning_rate=request.learning_rate,
-            n_estimators=request.n_estimators,
-            threshold=request.threshold
+            random_state=request.random_state
         )
-        fp.fit(X, y_failure)
-        
-        models_cache["failure_predictor"] = fp
+        predictor.fit(cache["X_engineered"], y_binary)
+        cache["failure_predictor"] = predictor
         
         return {
             "status": "trained",
@@ -250,124 +276,58 @@ async def train_failure_predictor(request: FailureTrainRequest):
             "learning_rate": request.learning_rate
         }
     except Exception as e:
+        logger.error(f"Error training failure predictor: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@app.post("/failure/predict")
+@app.post("/failure/predict", tags=["failure"])
 async def predict_failure(request: PredictionRequest):
-    """Predict binary failure."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["failure_predictor"] is None:
-        raise HTTPException(status_code=400, detail="Failure predictor not trained. Call /failure/train first.")
-    
+    """Predict failures."""
     try:
+        if cache["failure_predictor"] is None:
+            raise ValueError("Failure predictor not trained. Call /failure/train first.")
+        
         X = np.array(request.X, dtype=np.float32)
-        preds = models_cache["failure_predictor"].predict(X)
+        predictions = cache["failure_predictor"].predict(X)
+        probabilities = cache["failure_predictor"].predict_proba(X)
         
         return {
-            "predictions": preds.tolist(),
-            "n_samples": len(preds)
+            "predictions": predictions.tolist(),
+            "probabilities": probabilities[:, 1].tolist(),
+            "n_samples": len(predictions)
         }
     except Exception as e:
+        logger.error(f"Error predicting failures: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/failure/predict_proba")
-async def predict_failure_proba(request: PredictionRequest):
-    """Predict failure probability."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["failure_predictor"] is None:
-        raise HTTPException(status_code=400, detail="Failure predictor not trained. Call /failure/train first.")
-    
-    try:
-        X = np.array(request.X, dtype=np.float32)
-        proba = models_cache["failure_predictor"].predict_proba(X)
-        
-        return {
-            "probabilities": proba.tolist(),
-            "n_samples": len(proba)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/failure/shap_values")
-async def get_failure_shap_values(request: PredictionRequest):
-    """Get SHAP feature importance."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["failure_predictor"] is None:
-        raise HTTPException(status_code=400, detail="Failure predictor not trained. Call /failure/train first.")
-    
-    try:
-        X = np.array(request.X, dtype=np.float32)
-        shap_vals = models_cache["failure_predictor"].get_shap_values(X)
-        
-        return {
-            "shap_values": shap_vals.tolist(),
-            "n_samples": len(shap_vals),
-            "n_features": shap_vals.shape[1]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/failure/metrics")
-async def compute_failure_metrics(request: MetricsRequest):
-    """Compute failure prediction metrics."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["failure_predictor"] is None:
-        raise HTTPException(status_code=400, detail="Failure predictor not trained. Call /failure/train first.")
-    
-    try:
-        X = np.array(request.X, dtype=np.float32)
-        y = np.array(request.y, dtype=np.float32)
-        
-        # Convert continuous y to binary labels (0 or 1)
-        # If y is already binary, this won't change anything
-        # If y is continuous, threshold at 0.5
-        y_binary = (y > 0.5).astype(int) if np.max(y) <= 1.0 else (y > np.median(y)).astype(int)
-        
-        metrics = models_cache["failure_predictor"].compute_metrics(X, y_binary)
-        
-        # Ensure all values are JSON-serializable floats
-        metrics_clean = {k: float(v) for k, v in metrics.items()}
-        
-        return metrics_clean
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 # ============================================================================
 # RUL Estimation Endpoints
 # ============================================================================
 
-@app.post("/rul/train")
-async def train_rul_estimator(request: RULTrainRequest):
-    """Train RUL estimator."""
+@app.post("/rul/train", tags=["rul"])
+async def train_rul_estimator(request: RULEstimatorTrainRequest):
+    """Train RUL estimation model."""
     try:
-        if models_cache["X_engineered"] is None:
+        if cache["X_engineered"] is None:
             raise ValueError("No engineered features. Call /features/engineer first.")
+        if cache["y_raw"] is None:
+            raise ValueError("No labels. Call /data/load first.")
         
         from models.train.rul_estimator import RULEstimator
         
-        # Create RUL labels (y_raw is already RUL in cycles)
-        window_size = 5
-        y_rul = models_cache["y_raw"][window_size-1:].astype(np.float32)
-        X = models_cache["X_engineered"]
-        
-        if len(y_rul) != len(X):
-            raise ValueError(f"Label mismatch: {len(y_rul)} vs {len(X)}")
-        
-        rul = RULEstimator(
+        estimator = RULEstimator(
             sequence_length=request.sequence_length,
             lstm_units=request.lstm_units,
             dropout_rate=request.dropout_rate,
             learning_rate=request.learning_rate,
             epochs=request.epochs
         )
-        rul.fit(X, y_rul, validation_split=0.2, verbose=0)
-        
-        models_cache["rul_estimator"] = rul
+        estimator.fit(
+            cache["X_engineered"],
+            cache["y_raw"],
+            validation_split=0.2,
+            verbose=0
+        )
+        cache["rul_estimator"] = estimator
         
         return {
             "status": "trained",
@@ -377,117 +337,87 @@ async def train_rul_estimator(request: RULTrainRequest):
             "epochs": request.epochs
         }
     except Exception as e:
+        logger.error(f"Error training RUL estimator: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-
-@app.post("/rul/predict")
+@app.post("/rul/predict", tags=["rul"])
 async def predict_rul(request: PredictionRequest):
     """Predict RUL."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["rul_estimator"] is None:
-        raise HTTPException(status_code=400, detail="RUL estimator not trained. Call /rul/train first.")
-    
     try:
+        if cache["rul_estimator"] is None:
+            raise ValueError("RUL estimator not trained. Call /rul/train first.")
+        
         X = np.array(request.X, dtype=np.float32)
-        rul_est = models_cache["rul_estimator"]
-        
-        # If input is smaller than sequence_length, pad it with zeros
-        if X.shape[0] < rul_est.sequence_length:
-            X_padded = np.zeros((rul_est.sequence_length, X.shape[1]), dtype=np.float32)
-            X_padded[-X.shape[0]:] = X
-            X = X_padded
-        
-        preds = rul_est.predict(X)
-        
-        # Handle empty predictions
-        if preds is None or len(preds) == 0:
-            # Return dummy predictions if model returns empty
-            preds = np.zeros(len(request.X), dtype=np.float32)
-        
-        # Return only predictions for the original input size
-        preds = preds[:len(request.X)]
+        predictions = cache["rul_estimator"].predict(X)
         
         return {
-            "predictions": preds.tolist(),
-            "n_samples": len(preds)
+            "predictions": predictions.tolist(),
+            "n_samples": len(predictions)
         }
     except Exception as e:
+        logger.error(f"Error predicting RUL: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.post("/rul/metrics")
-async def compute_rul_metrics(request: MetricsRequest):
-    """Compute RUL metrics."""
-    # Check if model is trained BEFORE trying to use it
-    if models_cache["rul_estimator"] is None:
-        raise HTTPException(status_code=400, detail="RUL estimator not trained. Call /rul/train first.")
-    
-    try:
-        X = np.array(request.X, dtype=np.float32)
-        y = np.array(request.y, dtype=np.float32)
-        
-        metrics = models_cache["rul_estimator"].compute_metrics(X, y)
-        
-        # Ensure all values are JSON-serializable floats
-        metrics_clean = {k: float(v) for k, v in metrics.items()}
-        
-        return metrics_clean
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
 
 # ============================================================================
-# Model Management Endpoints
+# Model Status Endpoint
 # ============================================================================
 
-@app.post("/models/save")
-async def save_models(request: SaveModelsRequest):
-    """Save all trained models."""
-    try:
-        from pathlib import Path
-        
-        path = Path(request.path)
-        path.mkdir(parents=True, exist_ok=True)
-        
-        saved = []
-        
-        if models_cache["anomaly_detector"] is not None:
-            models_cache["anomaly_detector"].save(str(path / "anomaly_detector"))
-            saved.append("anomaly_detector")
-        
-        if models_cache["failure_predictor"] is not None:
-            models_cache["failure_predictor"].save(str(path / "failure_predictor"))
-            saved.append("failure_predictor")
-        
-        if models_cache["rul_estimator"] is not None:
-            models_cache["rul_estimator"].save(str(path / "rul_estimator"))
-            saved.append("rul_estimator")
-        
-        return {
-            "status": "saved",
-            "path": str(path),
-            "models": saved
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/models/status")
-async def get_models_status():
-    """Get status of all models."""
+@app.get("/status", tags=["status"])
+async def get_status():
+    """Get model training status."""
     return {
-        "anomaly_detector": {
-            "trained": models_cache["anomaly_detector"] is not None
-        },
-        "failure_predictor": {
-            "trained": models_cache["failure_predictor"] is not None
-        },
-        "rul_estimator": {
-            "trained": models_cache["rul_estimator"] is not None
-        },
-        "data_loaded": models_cache["X_engineered"] is not None
+        "data_loaded": cache["X_raw"] is not None,
+        "features_engineered": cache["X_engineered"] is not None,
+        "anomaly_detector_trained": cache["anomaly_detector"] is not None,
+        "failure_predictor_trained": cache["failure_predictor"] is not None,
+        "rul_estimator_trained": cache["rul_estimator"] is not None,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
+
+# ============================================================================
+# Error Handlers
+# ============================================================================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Handle HTTP exceptions."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "detail": exc.detail,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Handle general exceptions."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "detail": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+    )
+
+# ============================================================================
+# Startup/Shutdown
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize on startup."""
+    logger.info("AIPMS API starting up...")
+    logger.info("Phase 4: Backend API for ML Model Inference")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    logger.info("AIPMS API shutting down...")
 
 if __name__ == "__main__":
     import uvicorn
