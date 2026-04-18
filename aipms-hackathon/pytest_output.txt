@@ -1,0 +1,55 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\sharm\Downloads\BIT-SINDRI\aipms-hackathon
+plugins: anyio-4.3.0, cov-5.0.0
+collecting ... collected 22 items
+
+tests/test_data_manager.py::TestDatasetRegistry::test_registry_initialization PASSED [  4%]
+tests/test_data_manager.py::TestDatasetRegistry::test_registry_subset_info PASSED [  9%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_basic_shape PASSED [ 13%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_feature_count PASSED [ 18%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_rul_values FAILED [ 22%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_reproducibility PASSED [ 27%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_feature_ranges PASSED [ 31%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_with_engine_ids PASSED [ 36%]
+tests/test_data_manager.py::TestDatasetManagerLoading::test_load_synthetic_data_default FAILED [ 40%]
+tests/test_data_manager.py::TestDatasetManagerLoading::test_load_returns_numpy_arrays PASSED [ 45%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_shape_correct PASSED [ 50%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_shape_mismatch PASSED [ 54%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_wrong_feature_count PASSED [ 59%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_nan PASSED [ 63%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_inf PASSED [ 68%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_negative_y PASSED [ 72%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_cache_synthetic_data PASSED [ 77%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_clear_cache PASSED [ 81%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_cache_full_clear PASSED [ 86%]
+tests/test_data_manager.py::TestDatasetManagerIntegration::test_end_to_end_load_and_validate FAILED [ 90%]
+tests/test_data_manager.py::TestDatasetManagerIntegration::test_load_all_subsets PASSED [ 95%]
+tests/test_data_manager.py::TestDatasetManagerIntegration::test_dataset_manager_initialization PASSED [100%]
+
+================================== FAILURES ===================================
+________ TestDatasetManagerSynthetic.test_synthetic_dataset_rul_values ________
+tests\test_data_manager.py:75: in test_synthetic_dataset_rul_values
+    assert np.all(y > 0), f"All RUL values should be > 0, got min: {y.min()}"
+E   AssertionError: All RUL values should be > 0, got min: 0.0
+E   assert False
+E    +  where False = <function all at 0x000002597FD60720>(array([50., 49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39., 38.,\n       37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25.,\n       24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12.,\n       11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 54.,\n       53., 52., 51., 50., 49., 48., 47., 46., 45., 44., 43., 42., 41.,\n       40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30., 29., 28.,\n       27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17., 16., 15.,\n       14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,\n        1.,  0., 40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30.,\n       29., 28., 27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17.,\n       16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,\n        3.,  2.,  1.,  0., 44., 43., 42., 41., 40., 39., 38., 37., 36.,\n       35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24., 23.,\n       22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,\n        9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 48., 47., 46.,\n       45., 44., 43., 42., 41., 40., 39., 38., 37., 36., 35., 34., 33.,\n       32., 31., 30., 29., 28., 27., 26., 25., 24., 23., 22., 21., 20.,\n       19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,\n        6.,  5.,  4.,  3.,  2.,  1.,  0.], dtype=float32) > 0)
+E    +    where <function all at 0x000002597FD60720> = np.all
+_________ TestDatasetManagerLoading.test_load_synthetic_data_default __________
+tests\test_data_manager.py:146: in test_load_synthetic_data_default
+    assert np.all(y > 0)
+E   assert False
+E    +  where False = <function all at 0x000002597FD60720>(array([50., 49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39., 38.,\n       37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25.,\n       24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12.,\n       11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 52.,\n       51., 50., 49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39.,\n       38., 37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26.,\n       25., 24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13.,\n       12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0.,\n       43., 42., 41., 40., 39., 38., 37., 36., 35., 34., 33., 32., 31.,\n       30., 29., 28., 27., 26., 25., 24., 23., 22., 21., 20., 19., 18.,\n       17., 16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,\n        4.,  3.,  2.,  1.,  0., 42., 41., 40., 39., 38., 37., 36., 35.,\n       34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24., 23., 22.,\n       21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,  9.,\n        8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 43., 42., 41., 40.,\n       39., 38., 37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27.,\n       26., 25., 24., 23., 22., 21., 20., 19.,... 1.,  0., 41.,\n       40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30., 29., 28.,\n       27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17., 16., 15.,\n       14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,\n        1.,  0., 54., 53., 52., 51., 50., 49., 48., 47., 46., 45., 44.,\n       43., 42., 41., 40., 39., 38., 37., 36., 35., 34., 33., 32., 31.,\n       30., 29., 28., 27., 26., 25., 24., 23., 22., 21., 20., 19., 18.,\n       17., 16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,\n        4.,  3.,  2.,  1.,  0., 58., 57., 56., 55., 54., 53., 52., 51.,\n       50., 49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39., 38.,\n       37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25.,\n       24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12.,\n       11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 54.,\n       53., 52., 51., 50., 49., 48., 47., 46., 45., 44., 43., 42., 41.,\n       40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30., 29., 28.,\n       27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17., 16., 15.,\n       14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,\n        1.,  0.], dtype=float32) > 0)
+E    +    where <function all at 0x000002597FD60720> = np.all
+_______ TestDatasetManagerIntegration.test_end_to_end_load_and_validate _______
+tests\test_data_manager.py:273: in test_end_to_end_load_and_validate
+    assert np.all(y > 0)
+E   assert False
+E    +  where False = <function all at 0x000002597FD60720>(array([55., 54., 53., 52., 51., 50., 49., 48., 47., 46., 45., 44., 43.,\n       42., 41., 40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30.,\n       29., 28., 27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17.,\n       16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,\n        3.,  2.,  1.,  0., 56., 55., 54., 53., 52., 51., 50., 49., 48.,\n       47., 46., 45., 44., 43., 42., 41., 40., 39., 38., 37., 36., 35.,\n       34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24., 23., 22.,\n       21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,  9.,\n        8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 46., 45., 44., 43.,\n       42., 41., 40., 39., 38., 37., 36., 35., 34., 33., 32., 31., 30.,\n       29., 28., 27., 26., 25., 24., 23., 22., 21., 20., 19., 18., 17.,\n       16., 15., 14., 13., 12., 11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,\n        3.,  2.,  1.,  0., 43., 42., 41., 40., 39., 38., 37., 36., 35.,\n       34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24., 23., 22.,\n       21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,  9.,\n        8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 46., 45., 44., 43.,\n       42., 41., 40., 39., 38., 37., 36., 35.,... 26., 25., 24., 23., 22., 21.,\n       20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,  9.,  8.,\n        7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 40., 39., 38., 37., 36.,\n       35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24., 23.,\n       22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11., 10.,\n        9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 52., 51., 50.,\n       49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39., 38., 37.,\n       36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25., 24.,\n       23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12., 11.,\n       10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 39., 38.,\n       37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25.,\n       24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12.,\n       11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0., 51.,\n       50., 49., 48., 47., 46., 45., 44., 43., 42., 41., 40., 39., 38.,\n       37., 36., 35., 34., 33., 32., 31., 30., 29., 28., 27., 26., 25.,\n       24., 23., 22., 21., 20., 19., 18., 17., 16., 15., 14., 13., 12.,\n       11., 10.,  9.,  8.,  7.,  6.,  5.,  4.,  3.,  2.,  1.,  0.],\n      dtype=float32) > 0)
+E    +    where <function all at 0x000002597FD60720> = np.all
+=========================== short test summary info ===========================
+FAILED tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_rul_values
+FAILED tests/test_data_manager.py::TestDatasetManagerLoading::test_load_synthetic_data_default
+FAILED tests/test_data_manager.py::TestDatasetManagerIntegration::test_end_to_end_load_and_validate
+======================== 3 failed, 19 passed in 1.85s =========================

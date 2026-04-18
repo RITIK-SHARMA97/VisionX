@@ -1,0 +1,157 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\sharm\Downloads\BIT-SINDRI\aipms-hackathon
+plugins: anyio-4.3.0, cov-5.0.0
+collecting ... collected 138 items / 13 deselected / 125 selected
+
+tests/test_anomaly_detector.py::TestAnomalyDetectorInit::test_init_default_params PASSED [  0%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorInit::test_init_custom_params PASSED [  1%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorTraining::test_fit_basic PASSED [  2%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorTraining::test_fit_with_constant_features PASSED [  3%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorTraining::test_fit_updates_state PASSED [  4%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorScores::test_score_samples_output_shape PASSED [  4%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorScores::test_score_samples_range PASSED [  5%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorScores::test_score_samples_distinguishes_outliers PASSED [  6%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorScores::test_score_samples_single_row PASSED [  7%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorLabels::test_predict_output_shape PASSED [  8%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorLabels::test_predict_valid_labels PASSED [  8%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorLabels::test_predict_normal_threshold PASSED [  9%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorLabels::test_predict_threshold_ordering PASSED [ 10%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorPersistence::test_save_model PASSED [ 11%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorPersistence::test_load_model_produces_same_predictions PASSED [ 12%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorEdgeCases::test_predict_before_fit_raises_error PASSED [ 12%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorEdgeCases::test_handle_empty_batch PASSED [ 13%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorEdgeCases::test_handle_nan_in_input PASSED [ 14%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorEdgeCases::test_identical_samples PASSED [ 15%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorIntegration::test_integration_with_feature_engineer PASSED [ 16%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorIntegration::test_typical_anomaly_distribution PASSED [ 16%]
+tests/test_anomaly_detector.py::TestAnomalyDetectorIntegration::test_sequential_predictions PASSED [ 17%]
+tests/test_api.py::TestAPIHealthCheck::test_root_endpoint PASSED         [ 18%]
+tests/test_api.py::TestAPIHealthCheck::test_health_endpoint PASSED       [ 19%]
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_valid PASSED  [ 20%]
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_invalid PASSED [ 20%]
+tests/test_api.py::TestAPIDataEndpoints::test_engineer_features PASSED   [ 21%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_train PASSED [ 22%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict PASSED [ 23%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict_before_train PASSED [ 24%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_train PASSED [ 24%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_predict_proba PASSED [ 25%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_predict PASSED [ 26%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_shap_values PASSED [ 27%]
+tests/test_api.py::TestAPIPipeline::test_pipeline_persistence PASSED     [ 28%]
+tests/test_api.py::TestAPIErrorHandling::test_invalid_input_shape PASSED [ 28%]
+tests/test_api.py::TestAPIErrorHandling::test_missing_required_parameter PASSED [ 29%]
+tests/test_api.py::TestAPIErrorHandling::test_invalid_dataset_name PASSED [ 30%]
+tests/test_api.py::TestAPIErrorHandling::test_model_not_trained PASSED   [ 31%]
+tests/test_api.py::TestAPIResponseFormats::test_prediction_response_format PASSED [ 32%]
+tests/test_api.py::TestAPIResponseFormats::test_metrics_response_format PASSED [ 32%]
+tests/test_data_manager.py::TestDatasetRegistry::test_registry_initialization PASSED [ 33%]
+tests/test_data_manager.py::TestDatasetRegistry::test_registry_subset_info PASSED [ 34%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_basic_shape PASSED [ 35%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_feature_count PASSED [ 36%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_reproducibility PASSED [ 36%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_feature_ranges PASSED [ 37%]
+tests/test_data_manager.py::TestDatasetManagerSynthetic::test_synthetic_dataset_with_engine_ids PASSED [ 38%]
+tests/test_data_manager.py::TestDatasetManagerLoading::test_load_synthetic_data_default PASSED [ 39%]
+tests/test_data_manager.py::TestDatasetManagerLoading::test_load_returns_numpy_arrays PASSED [ 40%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_shape_correct PASSED [ 40%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_shape_mismatch PASSED [ 41%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_wrong_feature_count PASSED [ 42%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_nan PASSED [ 43%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_inf PASSED [ 44%]
+tests/test_data_manager.py::TestDatasetManagerValidation::test_validate_data_with_negative_y PASSED [ 44%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_cache_synthetic_data PASSED [ 45%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_clear_cache PASSED [ 46%]
+tests/test_data_manager.py::TestDatasetManagerCaching::test_cache_full_clear PASSED [ 47%]
+tests/test_data_manager.py::TestDatasetManagerIntegration::test_load_all_subsets PASSED [ 48%]
+tests/test_data_manager.py::TestDatasetManagerIntegration::test_dataset_manager_initialization PASSED [ 48%]
+tests/test_failure_predictor.py::TestFailurePredictorInit::test_init_default_params PASSED [ 49%]
+tests/test_failure_predictor.py::TestFailurePredictorInit::test_init_custom_params PASSED [ 50%]
+tests/test_failure_predictor.py::TestFailurePredictorTraining::test_fit_basic PASSED [ 51%]
+tests/test_failure_predictor.py::TestFailurePredictorTraining::test_fit_handles_class_imbalance PASSED [ 52%]
+tests/test_failure_predictor.py::TestFailurePredictorTraining::test_fit_with_minority_class PASSED [ 52%]
+tests/test_failure_predictor.py::TestFailurePredictorTraining::test_fit_all_same_class PASSED [ 53%]
+tests/test_failure_predictor.py::TestFailurePredictorProbabilities::test_predict_proba_output_shape PASSED [ 54%]
+tests/test_failure_predictor.py::TestFailurePredictorProbabilities::test_predict_proba_range PASSED [ 55%]
+tests/test_failure_predictor.py::TestFailurePredictorProbabilities::test_predict_proba_single_sample PASSED [ 56%]
+tests/test_failure_predictor.py::TestFailurePredictorProbabilities::test_predict_proba_class_distribution PASSED [ 56%]
+tests/test_failure_predictor.py::TestFailurePredictorClassification::test_predict_output_shape PASSED [ 57%]
+tests/test_failure_predictor.py::TestFailurePredictorClassification::test_predict_binary_values PASSED [ 58%]
+tests/test_failure_predictor.py::TestFailurePredictorClassification::test_predict_threshold_at_0_5 PASSED [ 59%]
+tests/test_failure_predictor.py::TestFailurePredictorShapleyValues::test_get_shap_values_output_shape PASSED [ 60%]
+tests/test_failure_predictor.py::TestFailurePredictorShapleyValues::test_get_shap_values_magnitude PASSED [ 60%]
+tests/test_failure_predictor.py::TestFailurePredictorShapleyValues::test_get_top_features PASSED [ 61%]
+tests/test_failure_predictor.py::TestFailurePredictorMetrics::test_compute_metrics_output PASSED [ 62%]
+tests/test_failure_predictor.py::TestFailurePredictorMetrics::test_compute_metrics_ranges PASSED [ 63%]
+tests/test_failure_predictor.py::TestFailurePredictorPersistence::test_save_model PASSED [ 64%]
+tests/test_failure_predictor.py::TestFailurePredictorPersistence::test_load_model_produces_same_predictions PASSED [ 64%]
+tests/test_failure_predictor.py::TestFailurePredictorEdgeCases::test_predict_before_fit_raises_error PASSED [ 65%]
+tests/test_failure_predictor.py::TestFailurePredictorEdgeCases::test_handle_empty_batch PASSED [ 66%]
+tests/test_failure_predictor.py::TestFailurePredictorEdgeCases::test_handle_wrong_feature_dimension PASSED [ 67%]
+tests/test_failure_predictor.py::TestFailurePredictorEdgeCases::test_handle_nan_in_input PASSED [ 68%]
+tests/test_failure_predictor.py::TestFailurePredictorIntegration::test_integration_with_feature_engineer PASSED [ 68%]
+tests/test_failure_predictor.py::TestFailurePredictorIntegration::test_typical_failure_prediction_on_degradation PASSED [ 69%]
+tests/test_failure_predictor.py::TestFailurePredictorIntegration::test_shap_on_failure_predictions PASSED [ 70%]
+tests/test_feature_engineer.py::TestMinMaxScaler::test_normalize_basic PASSED [ 71%]
+tests/test_feature_engineer.py::TestMinMaxScaler::test_normalize_zeros_and_ones PASSED [ 72%]
+tests/test_feature_engineer.py::TestMinMaxScaler::test_normalize_single_value PASSED [ 72%]
+tests/test_feature_engineer.py::TestMinMaxScaler::test_normalize_preserves_order PASSED [ 73%]
+tests/test_feature_engineer.py::TestMinMaxScaler::test_normalize_then_inverse PASSED [ 74%]
+tests/test_feature_engineer.py::TestRollingStatistics::test_rolling_mean PASSED [ 75%]
+tests/test_feature_engineer.py::TestRollingStatistics::test_rolling_features_shape PASSED [ 76%]
+tests/test_feature_engineer.py::TestRollingStatistics::test_rolling_features_non_nan PASSED [ 76%]
+tests/test_feature_engineer.py::TestRollingStatistics::test_rolling_window_size_effect PASSED [ 77%]
+tests/test_feature_engineer.py::TestTrainValTestSplit::test_basic_split PASSED [ 78%]
+tests/test_feature_engineer.py::TestTrainValTestSplit::test_no_data_leakage PASSED [ 79%]
+tests/test_feature_engineer.py::TestTrainValTestSplit::test_split_preserves_shapes PASSED [ 80%]
+tests/test_feature_engineer.py::TestScalerPersistence::test_save_and_load_scaler PASSED [ 80%]
+tests/test_feature_engineer.py::TestScalerPersistence::test_scaler_persistence_path PASSED [ 81%]
+tests/test_feature_engineer.py::TestFullPipeline::test_preprocessing_consistency PASSED [ 82%]
+tests/test_feature_engineer.py::TestFullPipeline::test_train_val_test_workflow PASSED [ 83%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_preprocessing_pipeline_init PASSED [ 84%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_load_cmapss_data_structure PASSED [ 84%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_load_cmapss_data_values PASSED [ 85%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_normalize_features_minmax PASSED [ 86%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_normalize_features_standard PASSED [ 87%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_normalize_features_inverse_transform PASSED [ 88%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_engineer_features_output_shape PASSED [ 88%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_engineer_features_no_nan PASSED [ 89%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_engineer_features_rolling_mean PASSED [ 90%]
+tests/test_preprocessing.py::TestPreprocessingPipeline::test_scaler_persistence PASSED [ 91%]
+tests/test_preprocessing.py::TestDataQuality::test_detect_missing_values PASSED [ 92%]
+tests/test_preprocessing.py::TestDataQuality::test_detect_outliers_zscore PASSED [ 92%]
+tests/test_preprocessing.py::TestFeatureEngineering::test_rolling_std_computation PASSED [ 93%]
+tests/test_setup.py::TestPhase1Setup::test_project_structure_exists PASSED [ 94%]
+tests/test_setup.py::TestPhase1Setup::test_requirements_file_exists PASSED [ 95%]
+tests/test_setup.py::TestPhase1Setup::test_env_file_exists PASSED        [ 96%]
+tests/test_setup.py::TestPhase1Setup::test_database_schema_exists PASSED [ 96%]
+tests/test_setup.py::TestPhase1Setup::test_python_imports PASSED         [ 97%]
+tests/test_setup.py::TestPhase1Setup::test_mosquitto_config_exists PASSED [ 98%]
+tests/test_setup.py::TestPhase1Setup::test_startup_scripts_exist PASSED  [ 99%]
+tests/test_setup.py::TestPhase1Setup::test_gitignore_exists PASSED       [100%]
+
+============================== warnings summary ===============================
+..\..\..\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12
+  Please use `import python_multipart` instead.
+
+tests/test_anomaly_detector.py: 15 warnings
+  max_samples (256) is greater than the total number of samples (100). max_samples will be set to n_samples for estimation.
+
+tests/test_anomaly_detector.py::TestAnomalyDetectorScores::test_score_samples_distinguishes_outliers
+  max_samples (256) is greater than the total number of samples (200). max_samples will be set to n_samples for estimation.
+
+tests/test_api.py: 19 warnings
+  The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead.
+
+tests/test_setup.py::TestPhase1Setup::test_python_imports
+  The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+
+tests/test_setup.py::TestPhase1Setup::test_python_imports
+tests/test_setup.py::TestPhase1Setup::test_python_imports
+tests/test_setup.py::TestPhase1Setup::test_python_imports
+tests/test_setup.py::TestPhase1Setup::test_python_imports
+  Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============== 125 passed, 13 deselected, 41 warnings in 44.37s ===============

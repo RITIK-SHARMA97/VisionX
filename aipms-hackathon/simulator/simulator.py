@@ -6,7 +6,7 @@ import time
 import threading
 import sys
 from datetime import datetime
-from equipment_profiles import EquipmentProfile
+from .equipment_profiles import EquipmentProfile
 
 
 class SensorSimulator:

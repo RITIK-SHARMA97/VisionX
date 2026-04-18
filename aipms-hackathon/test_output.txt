@@ -1,0 +1,78 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\sharm\Downloads\BIT-SINDRI\aipms-hackathon
+plugins: anyio-4.3.0, cov-5.0.0
+collecting ... collected 23 items
+
+tests/test_api.py::TestAPIHealthCheck::test_root_endpoint PASSED         [  4%]
+tests/test_api.py::TestAPIHealthCheck::test_health_endpoint PASSED       [  8%]
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_valid PASSED  [ 13%]
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_invalid PASSED [ 17%]
+tests/test_api.py::TestAPIDataEndpoints::test_engineer_features PASSED   [ 21%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_train PASSED [ 26%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict PASSED [ 30%]
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict_before_train FAILED [ 34%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_train PASSED [ 39%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_predict_proba PASSED [ 43%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_predict PASSED [ 47%]
+tests/test_api.py::TestFailurePredictorAPI::test_failure_predictor_shap_values PASSED [ 52%]
+tests/test_api.py::TestRULEstimatorAPI::test_rul_estimator_train PASSED  [ 56%]
+tests/test_api.py::TestRULEstimatorAPI::test_rul_estimator_predict FAILED [ 60%]
+tests/test_api.py::TestRULEstimatorAPI::test_rul_estimator_metrics PASSED [ 65%]
+tests/test_api.py::TestAPIPipeline::test_end_to_end_pipeline PASSED      [ 69%]
+tests/test_api.py::TestAPIPipeline::test_pipeline_persistence PASSED     [ 73%]
+tests/test_api.py::TestAPIErrorHandling::test_invalid_input_shape PASSED [ 78%]
+tests/test_api.py::TestAPIErrorHandling::test_missing_required_parameter PASSED [ 82%]
+tests/test_api.py::TestAPIErrorHandling::test_invalid_dataset_name PASSED [ 86%]
+tests/test_api.py::TestAPIErrorHandling::test_model_not_trained FAILED   [ 91%]
+tests/test_api.py::TestAPIResponseFormats::test_prediction_response_format PASSED [ 95%]
+tests/test_api.py::TestAPIResponseFormats::test_metrics_response_format FAILED [100%]
+
+================================== FAILURES ===================================
+______ TestAnomalyDetectorAPI.test_anomaly_detector_predict_before_train ______
+tests\test_api.py:153: in test_anomaly_detector_predict_before_train
+    assert response.status_code != 200
+E   assert 200 != 200
+E    +  where 200 = <Response [200 OK]>.status_code
+_______________ TestRULEstimatorAPI.test_rul_estimator_predict ________________
+tests\test_api.py:287: in test_rul_estimator_predict
+    assert len(data["predictions"]) > 0
+E   assert 0 > 0
+E    +  where 0 = len([])
+_________________ TestAPIErrorHandling.test_model_not_trained _________________
+tests\test_api.py:429: in test_model_not_trained
+    assert response.status_code != 200
+E   assert 200 != 200
+E    +  where 200 = <Response [200 OK]>.status_code
+_____________ TestAPIResponseFormats.test_metrics_response_format _____________
+tests\test_api.py:480: in test_metrics_response_format
+    assert all(isinstance(v, (int, float)) for v in data.values())
+E   assert False
+E    +  where False = all(<generator object TestAPIResponseFormats.test_metrics_response_format.<locals>.<genexpr> at 0x0000029C080567A0>)
+============================== warnings summary ===============================
+..\..\..\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12
+  C:\Users\sharm\AppData\Roaming\Python\Python311\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+tests/test_api.py::TestAPIHealthCheck::test_root_endpoint
+tests/test_api.py::TestAPIHealthCheck::test_health_endpoint
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_valid
+tests/test_api.py::TestAPIDataEndpoints::test_load_dataset_invalid
+tests/test_api.py::TestAPIDataEndpoints::test_engineer_features
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_train
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict
+tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict_before_train
+  C:\Users\sharm\AppData\Roaming\Python\Python311\site-packages\httpx\_client.py:680: DeprecationWarning: The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead.
+    warnings.warn(message, DeprecationWarning)
+
+tests/test_api.py: 15 warnings
+  The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_api.py::TestAnomalyDetectorAPI::test_anomaly_detector_predict_before_train
+FAILED tests/test_api.py::TestRULEstimatorAPI::test_rul_estimator_predict - a...
+FAILED tests/test_api.py::TestAPIErrorHandling::test_model_not_trained - asse...
+FAILED tests/test_api.py::TestAPIResponseFormats::test_metrics_response_format
+================= 4 failed, 19 passed, 24 warnings in 45.88s ==================
