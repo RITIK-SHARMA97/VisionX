@@ -1,0 +1,384 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from datetime import datetime, timedelta
+import sys
+from pathlib import Path
+
+# Add parent directory to path for absolute imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+try:
+    from dashboard.api_client import get_equipment_detail, get_equipment_sensors, get_equipment_rul
+except ImportError:
+    get_equipment_detail = None
+    get_equipment_sensors = None
+    get_equipment_rul = None
+
+st.set_page_config(page_title="Equipment Detail", layout="wide")
+st.title("🔧 Equipment Detail Dashboard")
+
+st.divider()
+
+# Function to generate sample equipment data
+def get_sample_equipment_list():
+    """Get list of available equipment"""
+    return ['Compressor-1', 'Turbine-2', 'Pump-3', 'Motor-4', 'Fan-5', 'Bearing-6', 'Gearbox-7']
+
+def get_sample_equipment_detail(equipment_id):
+    """Generate sample equipment detail data"""
+    return {
+        'equipment_id': equipment_id,
+        'name': equipment_id,
+        'type': equipment_id.split('-')[0],
+        'location': f'Production Area {equipment_id.split("-")[1]}',
+        'status': np.random.choice(['Healthy', 'Warning', 'Critical'], p=[0.6, 0.3, 0.1]),
+        'uptime_hours': np.random.randint(1000, 50000),
+        'total_runtime_hours': np.random.randint(50000, 100000),
+        'maintenance_due_days': np.random.randint(0, 30),
+        'last_maintenance': datetime.now() - timedelta(days=np.random.randint(10, 100)),
+        'next_maintenance': datetime.now() + timedelta(days=np.random.randint(1, 60)),
+        'operating_temperature_c': round(np.random.uniform(20, 80), 1),
+        'operating_pressure_bar': round(np.random.uniform(1, 10), 2),
+        'vibration_mm_s': round(np.random.uniform(0.5, 8.0), 2),
+        'rpm': np.random.randint(500, 3000),
+        'efficiency_percent': round(np.random.uniform(75, 98), 1),
+        'current_rul_days': np.random.randint(30, 500)
+    }
+
+def get_sample_sensor_trends(equipment_id):
+    """Generate sample sensor trend data"""
+    now = datetime.now()
+    timestamps = [now - timedelta(hours=h) for h in range(24, 0, -1)]
+    
+    sensors = {
+        'temperature': np.random.uniform(20, 80, 24) + np.random.normal(0, 2, 24),
+        'pressure': np.random.uniform(1, 10, 24) + np.random.normal(0, 0.5, 24),
+        'vibration': np.random.uniform(0.5, 8, 24) + np.random.normal(0, 0.3, 24),
+        'rpm': np.random.uniform(500, 3000, 24) + np.random.normal(0, 100, 24)
+    }
+    
+    return {
+        'timestamp': timestamps,
+        'temperature': np.clip(sensors['temperature'], 0, 150),
+        'pressure': np.clip(sensors['pressure'], 0, 20),
+        'vibration': np.clip(sensors['vibration'], 0, 15),
+        'rpm': np.clip(sensors['rpm'], 0, 5000)
+    }
+
+def get_sample_rul_degradation(equipment_id):
+    """Generate sample RUL degradation data"""
+    now = datetime.now()
+    days = np.arange(0, 366, 7)  # Weekly data for a year
+    
+    # Simulate degradation pattern
+    rul_values = 365 - (days * 0.8 + np.random.normal(0, 5, len(days)))
+    rul_values = np.clip(rul_values, 0, 500)
+    
+    return {
+        'date': [now + timedelta(days=int(d)) for d in days],
+        'rul': rul_values,
+        'threshold_warning': np.full(len(days), 90),  # Warning level
+        'threshold_critical': np.full(len(days), 30)   # Critical level
+    }
+
+# Equipment selector
+st.sidebar.header("Equipment Selection")
+equipment_list = get_sample_equipment_list()
+selected_equipment = st.sidebar.selectbox(
+    "Select Equipment",
+    options=equipment_list,
+    index=0
+)
+
+# Load equipment data
+try:
+    if get_equipment_detail:
+        equipment_detail = get_equipment_detail(selected_equipment)
+    else:
+        equipment_detail = get_sample_equipment_detail(selected_equipment)
+except Exception as e:
+    st.warning(f"Could not fetch equipment detail: {str(e)}")
+    equipment_detail = get_sample_equipment_detail(selected_equipment)
+
+# Try to load sensor trends
+try:
+    if get_equipment_sensors:
+        sensor_trends = get_equipment_sensors(selected_equipment)
+    else:
+        sensor_trends = get_sample_sensor_trends(selected_equipment)
+except Exception as e:
+    sensor_trends = get_sample_sensor_trends(selected_equipment)
+
+# Try to load RUL data
+try:
+    if get_equipment_rul:
+        rul_data = get_equipment_rul(selected_equipment)
+    else:
+        rul_data = get_sample_rul_degradation(selected_equipment)
+except Exception as e:
+    rul_data = get_sample_rul_degradation(selected_equipment)
+
+st.divider()
+
+# Equipment status header
+col1, col2, col3 = st.columns([2, 1, 1])
+
+with col1:
+    st.header(f"{equipment_detail['name']}")
+    st.text(f"Type: {equipment_detail['type']} | Location: {equipment_detail['location']}")
+
+with col2:
+    # Status indicator
+    status_color = {
+        'Healthy': '✅ Healthy',
+        'Warning': '⚠️ Warning',
+        'Critical': '🚨 Critical'
+    }
+    st.metric("Status", status_color.get(equipment_detail['status'], equipment_detail['status']))
+
+with col3:
+    # RUL metric
+    rul = equipment_detail['current_rul_days']
+    delta_color = "off"
+    if rul < 30:
+        delta_color = "inverse"
+    elif rul < 90:
+        delta_color = "inverse"
+    
+    st.metric("RUL (Days)", rul, delta_color=delta_color)
+
+st.divider()
+
+# Key metrics
+st.subheader("📊 Current Operating Conditions")
+
+metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
+
+with metric_col1:
+    st.metric(
+        "Temperature",
+        f"{equipment_detail['operating_temperature_c']}°C",
+        delta=f"Normal: 20-80°C"
+    )
+
+with metric_col2:
+    st.metric(
+        "Pressure",
+        f"{equipment_detail['operating_pressure_bar']} bar",
+        delta=f"Normal: 1-10 bar"
+    )
+
+with metric_col3:
+    st.metric(
+        "Vibration",
+        f"{equipment_detail['vibration_mm_s']} mm/s",
+        delta=f"Normal: <7 mm/s"
+    )
+
+with metric_col4:
+    st.metric(
+        "Speed",
+        f"{equipment_detail['rpm']:,} RPM",
+        delta=f"Efficiency: {equipment_detail['efficiency_percent']}%"
+    )
+
+with metric_col5:
+    st.metric(
+        "Uptime",
+        f"{equipment_detail['uptime_hours']:,} hrs",
+        delta=f"Total: {equipment_detail['total_runtime_hours']:,} hrs"
+    )
+
+st.divider()
+
+# Maintenance information
+st.subheader("🔧 Maintenance Information")
+
+maint_col1, maint_col2, maint_col3 = st.columns(3)
+
+with maint_col1:
+    st.info(f"""
+    **Last Maintenance**
+    {equipment_detail['last_maintenance'].strftime('%Y-%m-%d')}
+    ({(datetime.now() - equipment_detail['last_maintenance']).days} days ago)
+    """)
+
+with maint_col2:
+    days_until = (equipment_detail['next_maintenance'] - datetime.now()).days
+    color_class = "error" if days_until < 7 else "warning" if days_until < 14 else "info"
+    st.info(f"""
+    **Next Maintenance**
+    {equipment_detail['next_maintenance'].strftime('%Y-%m-%d')}
+    ({days_until} days remaining)
+    """)
+
+with maint_col3:
+    st.warning(f"""
+    **Maintenance Due**
+    {equipment_detail['maintenance_due_days']} days
+    """) if equipment_detail['maintenance_due_days'] > 0 else st.success(f"""
+    **Maintenance Status**
+    Up to date
+    """)
+
+st.divider()
+
+# Sensor trends chart
+st.subheader("📈 Sensor Trends (24 Hour History)")
+
+# Create multi-sensor plot
+fig_sensors = make_subplots(
+    rows=2, cols=2,
+    subplot_titles=("Temperature", "Pressure", "Vibration", "RPM"),
+    specs=[[{"secondary_y": False}, {"secondary_y": False}],
+           [{"secondary_y": False}, {"secondary_y": False}]]
+)
+
+# Temperature
+fig_sensors.add_trace(
+    go.Scatter(
+        x=sensor_trends['timestamp'],
+        y=sensor_trends['temperature'],
+        name='Temperature (°C)',
+        mode='lines',
+        line=dict(color='#FF6B6B'),
+        fill='tozeroy'
+    ),
+    row=1, col=1
+)
+
+# Pressure
+fig_sensors.add_trace(
+    go.Scatter(
+        x=sensor_trends['timestamp'],
+        y=sensor_trends['pressure'],
+        name='Pressure (bar)',
+        mode='lines',
+        line=dict(color='#4ECDC4'),
+        fill='tozeroy'
+    ),
+    row=1, col=2
+)
+
+# Vibration
+fig_sensors.add_trace(
+    go.Scatter(
+        x=sensor_trends['timestamp'],
+        y=sensor_trends['vibration'],
+        name='Vibration (mm/s)',
+        mode='lines',
+        line=dict(color='#FFE66D'),
+        fill='tozeroy'
+    ),
+    row=2, col=1
+)
+
+# RPM
+fig_sensors.add_trace(
+    go.Scatter(
+        x=sensor_trends['timestamp'],
+        y=sensor_trends['rpm'],
+        name='RPM',
+        mode='lines',
+        line=dict(color='#95E1D3'),
+        fill='tozeroy'
+    ),
+    row=2, col=2
+)
+
+fig_sensors.update_xaxes(title_text="Time", row=2, col=1)
+fig_sensors.update_xaxes(title_text="Time", row=2, col=2)
+fig_sensors.update_yaxes(title_text="°C", row=1, col=1)
+fig_sensors.update_yaxes(title_text="bar", row=1, col=2)
+fig_sensors.update_yaxes(title_text="mm/s", row=2, col=1)
+fig_sensors.update_yaxes(title_text="RPM", row=2, col=2)
+
+fig_sensors.update_layout(height=600, showlegend=False, hovermode='x unified')
+
+st.plotly_chart(fig_sensors, use_container_width=True)
+
+st.divider()
+
+# RUL Degradation chart
+st.subheader("⏳ RUL (Remaining Useful Life) Degradation")
+
+rul_df = pd.DataFrame(rul_data)
+
+fig_rul = go.Figure()
+
+# RUL line
+fig_rul.add_trace(go.Scatter(
+    x=rul_df['date'],
+    y=rul_df['rul'],
+    mode='lines',
+    name='RUL',
+    line=dict(color='#2196F3', width=3),
+    fill='tozeroy'
+))
+
+# Warning threshold
+fig_rul.add_trace(go.Scatter(
+    x=rul_df['date'],
+    y=rul_df['threshold_warning'],
+    mode='lines',
+    name='Warning Threshold (90 days)',
+    line=dict(color='#FFC107', width=2, dash='dash')
+))
+
+# Critical threshold
+fig_rul.add_trace(go.Scatter(
+    x=rul_df['date'],
+    y=rul_df['threshold_critical'],
+    mode='lines',
+    name='Critical Threshold (30 days)',
+    line=dict(color='#F44336', width=2, dash='dash')
+))
+
+fig_rul.update_layout(
+    title="RUL Degradation Over Time",
+    xaxis_title="Date",
+    yaxis_title="RUL (Days)",
+    height=400,
+    hovermode='x unified',
+    legend=dict(x=0.01, y=0.99)
+)
+
+st.plotly_chart(fig_rul, use_container_width=True)
+
+# RUL interpretation
+col1, col2 = st.columns(2)
+
+with col1:
+    current_rul = equipment_detail['current_rul_days']
+    if current_rul < 30:
+        st.error(f"🚨 **CRITICAL**: RUL is {current_rul} days. Immediate maintenance may be required.")
+    elif current_rul < 90:
+        st.warning(f"⚠️ **WARNING**: RUL is {current_rul} days. Plan maintenance soon.")
+    else:
+        st.success(f"✅ **HEALTHY**: RUL is {current_rul} days. Equipment operating normally.")
+
+with col2:
+    degradation_rate = (rul_df['rul'].iloc[0] - rul_df['rul'].iloc[-1]) / len(rul_df)
+    st.info(f"**Degradation Rate**: ~{abs(degradation_rate):.2f} days/week")
+
+st.divider()
+
+# Additional analysis
+st.subheader("📋 Health Summary")
+
+health_items = [
+    ("Efficiency", f"{equipment_detail['efficiency_percent']}%", equipment_detail['efficiency_percent'] > 85),
+    ("Temperature Normal", "Yes" if 20 <= equipment_detail['operating_temperature_c'] <= 80 else "No", 20 <= equipment_detail['operating_temperature_c'] <= 80),
+    ("Pressure Normal", "Yes" if 1 <= equipment_detail['operating_pressure_bar'] <= 10 else "No", 1 <= equipment_detail['operating_pressure_bar'] <= 10),
+    ("Vibration Normal", "Yes" if equipment_detail['vibration_mm_s'] < 7 else "No", equipment_detail['vibration_mm_s'] < 7),
+]
+
+for label, value, is_good in health_items:
+    status_icon = "✅" if is_good else "⚠️"
+    st.write(f"{status_icon} {label}: {value}")
+
+st.divider()
+st.caption("Equipment data updated in real-time • Last refresh: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))

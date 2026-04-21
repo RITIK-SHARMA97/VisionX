@@ -15,18 +15,20 @@ from typing import Tuple, Optional
 import pickle
 from scipy import stats
 import logging
+import config_constants as cfg
 
 logger = logging.getLogger(__name__)
+logger.debug("FeatureEngineer module loaded")
 
 
 class RULScaler:
     """Scaler for RUL target variable."""
     
-    def __init__(self, rul_max: float = 125.0):
+    def __init__(self, rul_max: float = cfg.RUL_CLIPPING_MAX):
         """Initialize RUL scaler.
         
         Args:
-            rul_max: Maximum RUL value (will be clipped to this)
+            rul_max: Maximum RUL value (will be clipped to this) - from cfg.RUL_CLIPPING_MAX
         """
         self.rul_max = rul_max
     

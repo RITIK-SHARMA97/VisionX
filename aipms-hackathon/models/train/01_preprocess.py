@@ -14,6 +14,11 @@ import pickle
 import os
 from pathlib import Path
 import warnings
+import logging
+import config_constants as cfg
+
+logging.basicConfig(level=cfg.LOG_LEVEL, format=cfg.LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 warnings.filterwarnings('ignore')
 
@@ -86,7 +91,7 @@ def load_c_mapss_data(source_file, n_cycles_max=125, verbose=True):
     return df, active_sensor_cols
 
 
-def extract_features(df, active_sensor_cols, window_size=5, verbose=True):
+def extract_features(df, active_sensor_cols, window_size=cfg.FEATURE_WINDOW_SIZE, verbose=True):
     """
     Extract rolling statistics features per sensor
     - raw values (baseline)

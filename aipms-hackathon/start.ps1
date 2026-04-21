@@ -1,116 +1,204 @@
-# AIPMS - Windows PowerShell Startup Script
-# Phase 1: Setup & Scaffolding (2 hours)
-# Runs all initialization steps: dependencies, database, MQTT, verification
+# AIPMS Service Launcher - Phase 6: Integration & Full Flow Testing
+# Launches all 5 services in coordinated sequence
+# Usage: .\start.ps1
 
-Write-Host "================================"
-Write-Host "AIPMS Hackathon Setup Script"
-Write-Host "BIT Sindri PS-1: AI & Data Analytics"
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host ""
+$ErrorActionPreference = "Continue"
 
-# Get script directory
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $scriptDir
+Write-Host "`n╔════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║                    🚀 AIPMS SERVICE LAUNCHER (Phase 6)                         ║" -ForegroundColor Cyan
+Write-Host "║         Launching 5 services: MQTT → Simulator → API → Dashboard              ║" -ForegroundColor Cyan
+Write-Host "╚════════════════════════════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
-# === Step 1: Check Python ===
-Write-Host "[1/6] Checking Python installation..." -ForegroundColor Yellow
-$pythonVersion = python --version 2>&1
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Python installed: $pythonVersion"
-} else {
-    Write-Host "❌ Python not found. Please install Python 3.10+" -ForegroundColor Red
-    exit 1
+$PROJECT_ROOT = Split-Path -Parent $MyInvocation.MyCommand.Path
+$LOG_DIR = Join-Path $PROJECT_ROOT "logs"
+$PID_FILE = Join-Path $LOG_DIR "service_pids.txt"
+
+if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
+"" | Out-File -FilePath $PID_FILE -Force
+
+Push-Location $PROJECT_ROOT
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# SERVICE CONFIGURATIONS
+# ─────────────────────────────────────────────────────────────────────────────────
+
+$SERVICES = @(
+    @{
+        Name = "Mosquitto MQTT Broker"
+        Command = "docker"
+        Args = @("run", "-d", "-p", "1883:1883", "--name", "aipms-mosquitto", "eclipse-mosquitto:latest")
+        Port = 1883
+        Timeout = 10
+        IsMockable = $true
+    },
+    @{
+        Name = "MQTT Subscriber"
+        Command = "python"
+        Args = @("-m", "simulator.mqtt_subscriber")
+        Port = $null
+        Timeout = 8
+        IsMockable = $false
+    },
+    @{
+        Name = "Sensor Simulator"
+        Command = "python"
+        Args = @("-m", "simulator.simulator")
+        Port = $null
+        Timeout = 8
+        IsMockable = $false
+    },
+    @{
+        Name = "FastAPI Backend"
+        Command = "python"
+        Args = @("-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000")
+        Port = 8000
+        Timeout = 15
+        IsMockable = $false
+    },
+    @{
+        Name = "Streamlit Dashboard"
+        Command = "streamlit"
+        Args = @("run", "dashboard/app.py", "--server.port", "8501", "--server.headless", "true", "--logger.level=error")
+        Port = 8501
+        Timeout = 15
+        IsMockable = $false
+    }
+)
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# UTILITY FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────────
+
+function Test-PortAvailable {
+    param([int]$Port)
+    try {
+        $connection = New-Object System.Net.Sockets.TcpClient
+        $connection.ConnectAsync("127.0.0.1", $Port).Wait(100)
+        $connection.Close()
+        return $false
+    } catch { return $true }
 }
 
-# === Step 2: Create virtual environment (optional) ===
-Write-Host "[2/6] Setting up dependencies..." -ForegroundColor Yellow
-if (-not (Test-Path ".venv")) {
-    Write-Host "   Creating virtual environment..."
-    python -m venv .venv
-    & ".\.venv\Scripts\Activate.ps1"
+function Wait-ServiceReady {
+    param([hashtable]$Service)
+    
+    $name = $Service.Name
+    $port = $Service.Port
+    $timeout = $Service.Timeout
+    $startTime = Get-Date
+    
+    Write-Host "   ⏳ Waiting for service to be ready (max ${timeout}s)..." -ForegroundColor Yellow
+    
+    while ((Get-Date) -lt $startTime.AddSeconds($timeout)) {
+        if ($null -eq $port) {
+            Start-Sleep -Milliseconds 500
+            Write-Host "   ✅ Service started" -ForegroundColor Green
+            return $true
+        }
+        
+        try {
+            $response = Invoke-WebRequest -Uri "http://localhost:$port" -ErrorAction SilentlyContinue -TimeoutSec 1
+            Write-Host "   ✅ Service responding on port $port" -ForegroundColor Green
+            return $true
+        } catch {
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    
+    Write-Host "   ⚠️  Timeout waiting for service - may still be starting..." -ForegroundColor Yellow
+    return $false
 }
 
-# Install requirements
-Write-Host "   Installing packages from requirements.txt..."
-pip install -r requirements.txt --quiet
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Dependencies installed"
-} else {
-    Write-Host "⚠️  Some dependencies failed to install, continuing..."
-}
-
-# === Step 3: Initialize Database ===
-Write-Host "[3/6] Initializing SQLite database..." -ForegroundColor Yellow
-$dbPath = "aipms.db"
-if (Test-Path $dbPath) {
-    Write-Host "   Database already exists, skipping..."
-} else {
-    Write-Host "   Creating database and schema..."
-    sqlite3 $dbPath < config\schema.sql
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Database initialized"
-    } else {
-        Write-Host "⚠️  Database initialization warning (may need manual setup)"
+function Start-Service {
+    param([hashtable]$Service, [int]$Index)
+    
+    $name = $Service.Name
+    $command = $Service.Command
+    $args = $Service.Args
+    $port = $Service.Port
+    
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
+    Write-Host "[$Index/$($SERVICES.Count)] Launching: $name" -ForegroundColor Cyan
+    
+    if ($null -ne $port) {
+        if (-not (Test-PortAvailable -Port $port)) {
+            Write-Host "   ❌ Port $port is already in use!" -ForegroundColor Red
+            return $false
+        }
+    }
+    
+    try {
+        $logFile = Join-Path $LOG_DIR "$($name -replace ' ', '_').log"
+        $process = Start-Process -FilePath $command -ArgumentList $args -WorkingDirectory $PROJECT_ROOT `
+                                 -RedirectStandardOutput $logFile -RedirectStandardError $logFile `
+                                 -PassThru -NoNewWindow
+        
+        Write-Host "   ✅ Process started (PID: $($process.Id))" -ForegroundColor Green
+        Add-Content -Path $PID_FILE -Value "$($process.Id)"
+        
+        Start-Sleep -Milliseconds 1500
+        Wait-ServiceReady -Service $Service | Out-Null
+        return $true
+    } catch {
+        Write-Host "   ❌ Failed: $_" -ForegroundColor Red
+        return $false
     }
 }
 
-# === Step 4: Verify imports ===
-Write-Host "[4/6] Verifying Python imports..." -ForegroundColor Yellow
-python -c "
-import sys
-packages = ['pandas', 'numpy', 'sqlalchemy', 'paho.mqtt', 'fastapi', 'streamlit']
-failed = []
-for pkg in packages:
-    try:
-        __import__(pkg)
-        print(f'  ✓ {pkg}')
-    except ImportError:
-        failed.append(pkg)
-        print(f'  ✗ {pkg}')
-
-if failed:
-    print(f'⚠️  Missing: {', '.join(failed)}')
-    sys.exit(1)
-print('✅ All imports verified')
-"
-
-# === Step 5: Test database ===
-Write-Host "[5/6] Verifying database..." -ForegroundColor Yellow
-$tableCount = & sqlite3 $dbPath "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"
-Write-Host "   Found $tableCount tables"
-$equipmentCount = & sqlite3 $dbPath "SELECT COUNT(*) FROM equipment;"
-Write-Host "   Found $equipmentCount equipment units"
-if ($tableCount -ge 5 -and $equipmentCount -eq 3) {
-    Write-Host "✅ Database verified"
-} else {
-    Write-Host "⚠️  Database may need manual verification"
+function Stop-AllServices {
+    Write-Host "`n🛑 Stopping all services..." -ForegroundColor Yellow
+    
+    docker stop aipms-mosquitto 2>&1 | Out-Null
+    docker rm aipms-mosquitto 2>&1 | Out-Null
+    
+    if (Test-Path $PID_FILE) {
+        $pids = Get-Content $PID_FILE
+        foreach ($pid in $pids) {
+            Stop-Process -Id $pid -ErrorAction SilentlyContinue -Force
+        }
+    }
+    
+    Write-Host "   ✅ All services stopped" -ForegroundColor Green
 }
 
-# === Step 6: Completion Summary ===
-Write-Host "[6/6] Phase 1 Setup Complete" -ForegroundColor Green
+# ─────────────────────────────────────────────────────────────────────────────────
+# MAIN EXECUTION
+# ─────────────────────────────────────────────────────────────────────────────────
+
+$success = 0
+foreach ($service in $SERVICES) {
+    if (Start-Service -Service $service -Index ($success + 1)) {
+        $success++
+    }
+}
+
 Write-Host ""
-Write-Host "================================"
-Write-Host "Next Steps:"
-Write-Host "================================"
-Write-Host "1. Start MQTT broker (separate terminal):"
-Write-Host "   mosquitto -c config/mosquitto.conf"
-Write-Host ""
-Write-Host "2. Start simulator (separate terminal):"
-Write-Host "   python simulator/simulator.py"
-Write-Host ""
-Write-Host "3. Start MQTT subscriber (separate terminal):"
-Write-Host "   python simulator/mqtt_subscriber.py"
-Write-Host ""
-Write-Host "4. Start FastAPI backend (separate terminal):"
-Write-Host "   uvicorn api.main:app --reload"
-Write-Host ""
-Write-Host "5. Start Streamlit dashboard (separate terminal):"
-Write-Host "   streamlit run dashboard/app.py"
-Write-Host ""
-Write-Host "6. Run tests to verify setup:"
-Write-Host "   pytest tests/test_setup.py -v"
-Write-Host ""
-Write-Host "Dashboard: http://localhost:8501"
-Write-Host "API Docs: http://localhost:8000/docs"
-Write-Host ""
-Write-Host "================================" -ForegroundColor Cyan
+if ($success -eq $SERVICES.Count) {
+    Write-Host "╔════════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+    Write-Host "║                   ✅ ALL SERVICES RUNNING SUCCESSFULLY                        ║" -ForegroundColor Green
+    Write-Host "╚════════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "🌐 Access Points:" -ForegroundColor Cyan
+    Write-Host "   Dashboard  : http://localhost:8501" -ForegroundColor White
+    Write-Host "   API Docs   : http://localhost:8000/docs" -ForegroundColor White
+    Write-Host "   API Health : http://localhost:8000/health" -ForegroundColor White
+    Write-Host ""
+    Write-Host "📝 Service Logs:" -ForegroundColor Cyan
+    Write-Host "   Location: $LOG_DIR" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "⏳ Running... Press Ctrl+C to stop all services" -ForegroundColor Yellow
+    
+    $null = Register-EngineEvent -SourceIdentifier PowerShell.Exiting -Action { Stop-AllServices }
+    
+    try {
+        while ($true) { Start-Sleep -Seconds 60 }
+    } finally {
+        Stop-AllServices
+        Pop-Location
+    }
+} else {
+    Write-Host "❌ Failed to start all services ($success/$($SERVICES.Count) started)" -ForegroundColor Red
+    Stop-AllServices
+    Pop-Location
+    exit 1
+}

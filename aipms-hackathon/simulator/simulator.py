@@ -6,66 +6,73 @@ import time
 import threading
 import sys
 from datetime import datetime
+import logging
+import config_constants as cfg
+from typing import Optional
 from .equipment_profiles import EquipmentProfile
+
+logging.basicConfig(level=cfg.LOG_LEVEL, format=cfg.LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 
 class SensorSimulator:
     """Publishes sensor readings from an equipment unit to MQTT broker."""
     
     def __init__(self, equipment_id: str, lifecycle_stage: str, 
-                 broker_host: str = "localhost", broker_port: int = 1883):
+                 broker_host: Optional[str] = None, broker_port: Optional[int] = None) -> None:
         """
         Initialize sensor simulator.
         
         Args:
             equipment_id: Equipment identifier (e.g., 'EXC-01')
             lifecycle_stage: Equipment degradation stage
-            broker_host: MQTT broker hostname
-            broker_port: MQTT broker port (default: 1883)
+            broker_host: MQTT broker hostname (default from config)
+            broker_port: MQTT broker port (default from config)
         """
         self.equipment_id = equipment_id
         self.lifecycle_stage = lifecycle_stage
         self.profile = EquipmentProfile(equipment_id, lifecycle_stage)
         self.client = mqtt.Client(client_id=f"sim-{equipment_id}")
-        self.broker_host = broker_host
-        self.broker_port = broker_port
-        self.running = False
-        self.published_count = 0
+        self.broker_host = broker_host or cfg.MQTT_BROKER_HOST
+        self.broker_port = broker_port or cfg.MQTT_BROKER_PORT
+        self.running: bool = False
+        self.published_count: int = 0
         
         # Set MQTT callbacks
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
     
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, userdata, flags, rc) -> None:
         """MQTT connection callback."""
         if rc == 0:
-            print(f"✅ [{self.equipment_id}] Connected to MQTT broker ({self.broker_host}:{self.broker_port})")
+            logger.info(f"[{self.equipment_id}] Connected to MQTT broker ({self.broker_host}:{self.broker_port})")
             self.running = True
         else:
-            print(f"❌ [{self.equipment_id}] MQTT connection failed with code {rc}")
+            logger.error(f"[{self.equipment_id}] MQTT connection failed with code {rc}")
             self.running = False
     
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(self, client, userdata, rc) -> None:
         """MQTT disconnection callback."""
         if rc != 0:
-            print(f"⚠️  [{self.equipment_id}] Unexpected disconnection: {rc}")
+            logger.warning(f"[{self.equipment_id}] Unexpected disconnection: {rc}")
         self.running = False
     
-    def on_publish(self, client, userdata, mid):
+    def on_publish(self, client, userdata, mid) -> None:
         """MQTT publish callback."""
         # Called after message is published
-        pass
+        logger.debug(f"[{self.equipment_id}] Message {mid} published")
     
-    def start(self):
+    def start(self) -> None:
         """Connect to MQTT broker and start background thread."""
         try:
-            self.client.connect(self.broker_host, self.broker_port, 60)
+            logger.debug(f"[{self.equipment_id}] Connecting to MQTT broker at {self.broker_host}:{self.broker_port}")
+            self.client.connect(self.broker_host, self.broker_port, cfg.MQTT_BROKER_TIMEOUT)
             self.client.loop_start()
         except Exception as e:
-            print(f"❌ [{self.equipment_id}] Failed to connect: {e}")
+            logger.error(f"[{self.equipment_id}] Failed to connect: {e}")
     
-    def publish_loop(self, hz: float = 1.0):
+    def publish_loop(self, hz: float = 1.0) -> None:
         """
         Publish sensor readings at specified frequency.
         
@@ -74,7 +81,7 @@ class SensorSimulator:
         """
         interval = 1.0 / hz
         
-        print(f"📡 [{self.equipment_id}] Publishing at {hz} Hz (interval: {interval:.2f}s)")
+        logger.info(f"[{self.equipment_id}] Publishing at {hz} Hz (interval: {interval:.2f}s)")
         
         while True:
             try:
@@ -93,30 +100,29 @@ class SensorSimulator:
                         }
                         
                         topic = f"mines/equipment/{self.equipment_id}/sensors"
-                        self.client.publish(topic, json.dumps(payload), qos=1)
+                        self.client.publish(topic, json.dumps(payload), qos=cfg.MQTT_PUBLISH_QOS)
                         self.published_count += 1
+                        logger.debug(f"[{self.equipment_id}] Published {reading.sensor_name}")
                 
                 time.sleep(interval)
             
             except Exception as e:
-                print(f"❌ [{self.equipment_id}] Publish error: {e}")
-                time.sleep(1)
+                logger.error(f"[{self.equipment_id}] Publish error: {e}")
     
-    def stop(self):
+    def stop(self) -> None:
         """Gracefully shutdown simulator."""
-        print(f"⏹️  [{self.equipment_id}] Stopping simulator... (published {self.published_count} messages)")
+        logger.info(f"[{self.equipment_id}] Stopping simulator... (published {self.published_count} messages)")
         self.running = False
         self.client.loop_stop()
         self.client.disconnect()
 
 
-def main():
+def main() -> None:
     """Run AIPMS sensor simulators for multiple equipment units."""
     
-    print("=" * 70)
-    print("🚀 AIPMS Sensor Simulator - Phase 2A")
-    print("=" * 70)
-    print()
+    logger.info("=" * 70)
+    logger.info("AIPMS Sensor Simulator - Phase 2A")
+    logger.info("=" * 70)
     
     # Define equipment units with different degradation stages
     equipment_config = [
@@ -141,15 +147,14 @@ def main():
     threads = []
     
     # Start all simulators
-    print("Starting simulators...")
-    print()
+    logger.info("Starting simulators...")
     
     for config in equipment_config:
         eq_id = config['id']
         stage = config['stage']
         desc = config['description']
         
-        print(f"  {eq_id:10} | {stage:25} | {desc}")
+        logger.info(f"  {eq_id:10} | {stage:25} | {desc}")
         
         # Create simulator
         sim = SensorSimulator(eq_id, stage)
@@ -170,32 +175,31 @@ def main():
         time.sleep(0.5)  # Stagger starts slightly
     
     print()
-    print("=" * 70)
-    print("✅ All simulators started successfully!")
-    print()
-    print("📊 Publishing configuration:")
-    print(f"  • MQTT Broker: localhost:1883")
-    print(f"  • Publishing Frequency: 1 Hz (1 message/second per equipment)")
-    print(f"  • Topic Pattern: mines/equipment/{{equipment_id}}/sensors")
-    print(f"  • Total Messages/Second: 5 (5 sensors × 3 equipment × 1 Hz)")
-    print()
-    print("🎧 To verify in another terminal:")
-    print("  mosquitto_sub -h localhost -p 1883 -t 'mines/equipment/+/sensors' -v")
-    print()
-    print("⏹️  Press Ctrl+C to stop all simulators")
-    print("=" * 70)
-    print()
+    logger.info("=" * 70)
+    logger.info("All simulators started successfully!")
+    logger.info("")
+    logger.info("Publishing configuration:")
+    logger.info(f"  • MQTT Broker: {cfg.MQTT_BROKER_HOST}:{cfg.MQTT_BROKER_PORT}")
+    logger.info(f"  • Publishing Frequency: 1 Hz (1 message/second per equipment)")
+    logger.info(f"  • Topic Pattern: mines/equipment/{{equipment_id}}/sensors")
+    logger.info(f"  • QoS: {cfg.MQTT_PUBLISH_QOS}")
+    logger.info("")
+    logger.info("To verify in another terminal:")
+    logger.info(f"  mosquitto_sub -h {cfg.MQTT_BROKER_HOST} -p {cfg.MQTT_BROKER_PORT} -t 'mines/equipment/+/sensors' -v")
+    logger.info("")
+    logger.info("Press Ctrl+C to stop all simulators")
+    logger.info("=" * 70)
     
     # Keep main thread alive
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print()
-        print()
-        print("=" * 70)
-        print("⏹️  Shutting down simulators...")
-        print("=" * 70)
+        logger.info("")
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("Shutting down simulators...")
+        logger.info("=" * 70)
         
         # Stop all simulators
         for sim in simulators:
@@ -205,8 +209,12 @@ def main():
         for t in threads:
             t.join(timeout=2)
         
-        print("✅ All simulators stopped")
-        print()
+        logger.info("All simulators stopped")
+        logger.info("")
+
+
+# Export alias for backward compatibility
+SimulatorEngine = SensorSimulator
 
 
 if __name__ == "__main__":

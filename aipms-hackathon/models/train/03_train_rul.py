@@ -18,6 +18,11 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import pickle
 import os
+import logging
+import config_constants as cfg
+
+logging.basicConfig(level=cfg.LOG_LEVEL, format=cfg.LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 os.makedirs('models/saved', exist_ok=True)
 
@@ -139,8 +144,8 @@ print(f"   Early stopping: patience=15")
 
 # Training loop
 print(f"\n6. Training LSTM RUL Estimator...")
-epochs = 100
-batch_size = 256
+epochs = cfg.TRAINING_EPOCHS
+batch_size = cfg.MAX_BATCH_SIZE
 best_val_rmse = float('inf')
 patience = 15
 patience_counter = 0

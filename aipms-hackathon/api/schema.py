@@ -114,6 +114,10 @@ class Alert(AlertBase):
         from_attributes = True
 
 
+# Alias for backward compatibility
+MaintenanceAlert = Alert
+
+
 # === Maintenance Job Schemas ===
 class MaintenanceJobBase(BaseModel):
     equipment_id: str

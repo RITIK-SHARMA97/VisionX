@@ -15,6 +15,11 @@ from sklearn.ensemble import IsolationForest
 import pickle
 import os
 from pathlib import Path
+import logging
+import config_constants as cfg
+
+logging.basicConfig(level=cfg.LOG_LEVEL, format=cfg.LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 os.makedirs('models/saved', exist_ok=True)
 
@@ -36,7 +41,7 @@ print(f"\n2. Training Isolation Forest...")
 print(f"   Parameters:")
 print(f"      n_estimators: 200 (trees)")
 print(f"      max_samples: 256")
-print(f"      contamination: 0.05 (expected anomaly rate)")
+print(f"      contamination: {cfg.ANOMALY_CONTAMINATION_RATE} (expected anomaly rate)")
 print(f"      max_features: 1.0 (all)")
 print(f"      random_state: 42 (reproducibility)")
 
@@ -44,7 +49,7 @@ print(f"      random_state: 42 (reproducibility)")
 model = IsolationForest(
     n_estimators=200,
     max_samples=256,
-    contamination=0.05,
+    contamination=cfg.ANOMALY_CONTAMINATION_RATE,
     max_features=1.0,
     random_state=42,
     n_jobs=-1,

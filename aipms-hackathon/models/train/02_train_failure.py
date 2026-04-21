@@ -16,6 +16,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, f1_score, precision_score, recall_score, roc_curve
 import pickle
 import os
+import logging
+import config_constants as cfg
+
+logging.basicConfig(level=cfg.LOG_LEVEL, format=cfg.LOG_FORMAT)
+logger = logging.getLogger(__name__)
 
 # Try to import shap, but don't fail if it's unavailable due to memory constraints
 try:
